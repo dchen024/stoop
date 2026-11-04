@@ -14,11 +14,11 @@
 
 ## The problem
 
-Last winter New Yorkers filed 341,824 heat and hot water complaints with 311. The city publishes every housing complaint as open data, but it's scattered, hard to search, and "closed" often doesn't mean fixed: thousands are closed because the inspector couldn't get in. Tenants and renters can't easily answer: *is my building a problem, and is anything being done?*
+In the past 12 months New Yorkers filed **999,691 complaints** with the city's housing agency (HPD) about **65,104 buildings**: no heat, mold and rats, leaks, broken plumbing, peeling lead paint, broken locks, dead elevators. The city publishes all of it as open data, but it's scattered, hard to search, and "closed" often doesn't mean fixed: thousands are closed because the inspector couldn't get in. Tenants and renters can't easily answer: *is my building a problem, and is anything being done?*
 
 ## What it does
 
-- **Search any address** (fuzzy: "1040b e 217") and see every HPD complaint this heat season, filtered by issue, with the real outcome of each.
+- **Search any address** (fuzzy: "1040b e 217") and see every HPD complaint since Oct 1 across 14 issue types, filtered to the one you care about, with the real outcome of each.
 - **Explore the city by issue:** 14 categories (heat, pests and mold, leaks, plumbing, paint/lead, locks, elevators…), a live map, and a leaderboard sortable by most complaints, most still open, or most days with a complaint.
 - **Watch buildings** you live in or are about to rent. A bell alerts you live when a new complaint lands, when one is closed (and how), or when a neighbor posts.
 - **Resident reports:** neighbors can flag problems the city hasn't caught yet (labelled unverified).
