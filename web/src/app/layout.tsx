@@ -33,7 +33,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         </header>
         <main className="mx-auto max-w-4xl px-4 py-6 sm:py-10">{children}</main>
         <footer className="mx-auto max-w-4xl px-4 pb-10 text-xs text-stone-500">
-          Official data: NYC HPD Housing Maintenance Code Complaints (NYC Open Data), synced every 15 minutes.
+          Official data: NYC HPD Housing Maintenance Code Complaints (NYC Open Data), synced every 15 minutes ·{" "}
+          <Link href="/status" className="underline">
+            Data health
+          </Link>
         </footer>
       </body>
     </html>
