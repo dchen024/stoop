@@ -1,0 +1,5 @@
+project_id = "stoop"
+
+# Called by pg_cron with a shared secret (CRON_SECRET), not a user JWT.
+[functions.ingest-hpd]
+verify_jwt = false
