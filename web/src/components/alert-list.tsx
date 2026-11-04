@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { fmtDate, titleCase } from "@/lib/format";
-import { ALERT_SELECT as SELECT, KIND_LABEL, type AlertRow } from "@/lib/alerts";
+import { ALERT_SELECT as SELECT, alertTitle, type AlertRow } from "@/lib/alerts";
 
 
 export function AlertList({ userId, initial }: { userId: string; initial: AlertRow[] }) {
@@ -78,7 +78,7 @@ export function AlertList({ userId, initial }: { userId: string; initial: AlertR
             />
             <Link href={`/alerts/${a.id}`} className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-semibold">{KIND_LABEL[a.kind]}</span>
+                <span className="font-semibold">{alertTitle(a)}</span>
                 <span className="shrink-0 text-stone-500">{fmtDate(a.created_at, true)}</span>
               </div>
               <div className="text-sm">

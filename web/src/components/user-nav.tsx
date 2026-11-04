@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { ALERT_SELECT, KIND_LABEL, type AlertRow } from "@/lib/alerts";
+import { ALERT_SELECT, alertTitle, type AlertRow } from "@/lib/alerts";
 import { fmtDate, titleCase } from "@/lib/format";
 
 const outline =
@@ -143,7 +143,7 @@ function AlertsBell({ userId }: { userId: string }) {
                     <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${a.read_at ? "bg-transparent" : "bg-orange-600"}`} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-semibold">{KIND_LABEL[a.kind]}</span>
+                        <span className="truncate text-sm font-semibold">{alertTitle(a)}</span>
                         <span className="shrink-0 text-xs text-stone-500">{fmtDate(a.created_at, true)}</span>
                       </span>
                       <span className="block truncate text-sm text-stone-600 dark:text-stone-400">

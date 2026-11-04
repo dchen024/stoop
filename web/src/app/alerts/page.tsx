@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AlertList } from "@/components/alert-list";
+import { ALERT_SELECT, type AlertRow } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +14,7 @@ export default async function AlertsPage() {
 
   const { data: alerts } = await supabase
     .from("alerts")
-    .select(
-      "id, kind, created_at, read_at, building_id, buildings(address), complaints(problem_code, category), resident_reports(category, description)",
-    )
+    .select(ALERT_SELECT)
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -27,7 +26,7 @@ export default async function AlertsPage() {
           New official complaints, closed complaints and neighbor reports for buildings you watch. Updates live.
         </p>
       </div>
-      <AlertList userId={user.id} initial={alerts ?? []} />
+      <AlertList userId={user.id} initial={(alerts as AlertRow[] | null) ?? []} />
     </div>
   );
 }
