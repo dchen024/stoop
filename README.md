@@ -6,6 +6,12 @@
 - **Data health:** https://stoop-livid.vercel.app/status
 - Built at the Supabase × Sodabase × BuilderBase NYC Hackathon, Nov 4 2026.
 
+![Explore NYC by issue: filter chips, live stats, a map of buildings with open complaints, and the most-reported buildings](docs/screenshots/map-pests.jpg)
+
+| Building page, filtered to one issue | Data health (`/status`) | Phone |
+|---|---|---|
+| ![Building page with issue chips, stats, and complaint history showing how each complaint was closed](docs/screenshots/building.jpg) | ![Pipeline health, recent sync runs, and the checks that keep bad data out](docs/screenshots/status.jpg) | ![Home page on a phone](docs/screenshots/mobile-home.jpg) |
+
 ## The problem
 
 Last winter New Yorkers filed 341,824 heat and hot water complaints with 311. The city publishes every housing complaint as open data, but it's scattered, hard to search, and "closed" often doesn't mean fixed: thousands are closed because the inspector couldn't get in. Tenants and renters can't easily answer: *is my building a problem, and is anything being done?*
