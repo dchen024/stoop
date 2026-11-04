@@ -3,3 +3,9 @@ project_id = "stoop"
 # Called by pg_cron with a shared secret (CRON_SECRET), not a user JWT.
 [functions.ingest-hpd]
 verify_jwt = false
+
+[auth]
+site_url = "https://stoop-livid.vercel.app"
+additional_redirect_urls = ["https://stoop-livid.vercel.app/**", "http://localhost:3000/**", "https://*-dchen024s-projects.vercel.app/**"]
+# Judges can try the watchlist and reports instantly; magic link upgrades to a real account.
+enable_anonymous_sign_ins = true

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BuildingCommunity } from "@/components/building-community";
 import { createClient } from "@/lib/supabase/server";
 import { OUTCOME, currentSeason, fmtDate, titleCase } from "@/lib/format";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export default async function BuildingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,7 +14,7 @@ export default async function BuildingPage({ params }: { params: Promise<{ id: s
   const supabase = await createClient();
   const season = currentSeason();
 
-  const [{ data: building }, { data: stats }, { data: complaints }] = await Promise.all([
+  const [{ data: building }, { data: stats }, { data: complaints }, { data: categoryRows }, { data: reports }] = await Promise.all([
     supabase.from("buildings").select("*").eq("building_id", buildingId).maybeSingle(),
     supabase.from("building_stats").select("*").eq("building_id", buildingId).eq("season", season).maybeSingle(),
     supabase
@@ -24,6 +25,13 @@ export default async function BuildingPage({ params }: { params: Promise<{ id: s
       .eq("building_id", buildingId)
       .order("received_at", { ascending: false })
       .limit(500),
+    supabase.from("categories").select("name").order("name"),
+    supabase
+      .from("resident_reports")
+      .select("id, user_id, category, description, apartment, status, created_at")
+      .eq("building_id", buildingId)
+      .order("created_at", { ascending: false })
+      .limit(20),
   ]);
 
   if (!building) notFound();
@@ -52,6 +60,12 @@ export default async function BuildingPage({ params }: { params: Promise<{ id: s
         <Card value={stats?.complaints_open ?? 0} label="still open" />
         <Card value={stats?.no_access_closures ?? 0} label="closed, inspector couldn't get in" />
       </section>
+
+      <BuildingCommunity
+        buildingId={buildingId}
+        categories={(categoryRows ?? []).map((c) => c.name)}
+        initialReports={reports ?? []}
+      />
 
       {categories.length > 0 && (
         <section className="space-y-3">
