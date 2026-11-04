@@ -479,6 +479,19 @@ export type Database = {
           watermark_from: string
         }[]
       }
+      borough_code: {
+        Args: { b: Database["public"]["Enums"]["borough"] }
+        Returns: string
+      }
+      category_summary: {
+        Args: { p_season?: number }
+        Returns: {
+          buildings: number
+          category: string
+          complaints: number
+          open_complaints: number
+        }[]
+      }
       classify_closure: {
         Args: {
           description: string
@@ -487,6 +500,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["closure_reason"]
       }
       current_season: { Args: never; Returns: number }
+      enrich_buildings_from_registry: {
+        Args: { p_rows: Json }
+        Returns: number
+      }
       finish_ingest_run: {
         Args: { p_error?: string; p_run_id: number }
         Returns: undefined
@@ -495,6 +512,30 @@ export type Database = {
       ingest_hpd_batch: {
         Args: { p_rows: Json; p_run_id: number }
         Returns: Json
+      }
+      make_bbl: {
+        Args: {
+          b: Database["public"]["Enums"]["borough"]
+          block: string
+          lot: string
+        }
+        Returns: string
+      }
+      map_buildings: {
+        Args: {
+          p_category?: string
+          p_limit?: number
+          p_open_only?: boolean
+          p_season?: number
+        }
+        Returns: {
+          address: string
+          building_id: number
+          complaints: number
+          latitude: number
+          longitude: number
+          open_complaints: number
+        }[]
       }
       search_buildings: {
         Args: { max_results?: number; q: string }
@@ -506,6 +547,23 @@ export type Database = {
           open_complaints: number
           postcode: string
           similarity: number
+        }[]
+      }
+      top_buildings: {
+        Args: {
+          p_category?: string
+          p_limit?: number
+          p_season?: number
+          p_sort?: string
+        }
+        Returns: {
+          address: string
+          borough: Database["public"]["Enums"]["borough"]
+          building_id: number
+          complaint_days: number
+          complaints: number
+          nta: string
+          open_complaints: number
         }[]
       }
     }

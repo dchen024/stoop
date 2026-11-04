@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
-import { fmtDate, titleCase } from "@/lib/format";
+import { fmtDate } from "@/lib/format";
+import { categoryLabel } from "@/lib/categories";
 import type { Database } from "@/lib/database.types";
 
 type Report = Pick<
@@ -16,10 +17,12 @@ export function BuildingCommunity({
   buildingId,
   categories,
   initialReports,
+  selectedCategory = null,
 }: {
   buildingId: number;
   categories: string[];
   initialReports: Report[];
+  selectedCategory?: string | null;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [user, setUser] = useState<User | null>(null);
@@ -28,7 +31,8 @@ export function BuildingCommunity({
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const loginHref = `/login?next=/building/${buildingId}`;
+  const loginHref = `/login?next=${encodeURIComponent(`/building/${buildingId}${selectedCategory ? `?c=${selectedCategory}` : ""}`)}`;
+  const shown = selectedCategory ? reports.filter((r) => r.category === selectedCategory) : reports;
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -142,12 +146,12 @@ export function BuildingCommunity({
               <select
                 name="category"
                 required
-                defaultValue="HEAT/HOT WATER"
+                defaultValue={selectedCategory ?? "HEAT/HOT WATER"}
                 className="mt-1 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 dark:border-stone-700 dark:bg-stone-950"
               >
                 {categories.map((c) => (
                   <option key={c} value={c}>
-                    {titleCase(c)}
+                    {categoryLabel(c)}
                   </option>
                 ))}
               </select>
@@ -191,17 +195,17 @@ export function BuildingCommunity({
         </form>
       )}
 
-      {reports.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="text-sm text-stone-500">No resident reports yet. Neighbors who watch this building get alerted when you post one.</p>
       ) : (
         <ul className="space-y-2">
-          {reports.map((r) => (
+          {shown.map((r) => (
             <li
               key={r.id}
               className="rounded-xl border border-dashed border-stone-300 bg-white px-4 py-3 dark:border-stone-700 dark:bg-stone-900"
             >
               <div className="flex items-center justify-between gap-2 text-sm">
-                <span className="font-medium">{titleCase(r.category)}</span>
+                <span className="font-medium">{categoryLabel(r.category)}</span>
                 <span className="text-stone-500">
                   {fmtDate(r.created_at, true)}
                   {r.apartment && ` · Apt ${r.apartment}`}

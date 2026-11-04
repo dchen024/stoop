@@ -9,3 +9,7 @@ site_url = "https://stoop-livid.vercel.app"
 additional_redirect_urls = ["https://stoop-livid.vercel.app/**", "http://localhost:3000/**", "https://*-dchen024s-projects.vercel.app/**"]
 # Judges can try the watchlist and reports instantly; magic link upgrades to a real account.
 enable_anonymous_sign_ins = true
+
+[api]
+# The map RPC returns up to 5,000 buildings; the default 1,000-row cap truncated it.
+max_rows = 5000

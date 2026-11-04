@@ -9,6 +9,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const SOURCE = "https://data.cityofnewyork.us/resource/ygpa-z7cr.json";
+const REGISTRY = "https://data.cityofnewyork.us/resource/kj4p-ruqc.json"; // HPD Buildings Subject to HPD Jurisdiction
 const SEASON_START = "2026-10-01T00:00:00";
 const PAGE = 2500;
 const DEADLINE_MS = 120_000; // stay under the edge function wall-clock limit
@@ -70,11 +71,37 @@ Deno.serve(async (req) => {
       if (rows.length < PAGE) break;
     }
 
+    const enriched = await enrichFromRegistry(db);
     await db.rpc("finish_ingest_run", { p_run_id: run.run_id });
-    return Response.json({ run_id: run.run_id, watermark_from: run.watermark_from, ...totals });
+    return Response.json({ run_id: run.run_id, watermark_from: run.watermark_from, ...totals, enriched });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await db.rpc("finish_ingest_run", { p_run_id: run.run_id, p_error: message.slice(0, 500) });
     return Response.json({ run_id: run.run_id, error: message, ...totals }, { status: 500 });
   }
 });
+
+// The complaint feed omits BIN (and sometimes BBL) for some buildings; HPD's building
+// registry has them. Best effort: fills only missing values, never blocks the sync.
+// deno-lint-ignore no-explicit-any
+async function enrichFromRegistry(db: any): Promise<number> {
+  const { data: missing } = await db
+    .from("buildings")
+    .select("building_id")
+    .or("bin.is.null,bbl.is.null")
+    .limit(500);
+  let enriched = 0;
+  for (let i = 0; missing && i < missing.length; i += 100) {
+    const ids = missing.slice(i, i + 100).map((m: { building_id: number }) => m.building_id).join(",");
+    const params = new URLSearchParams({
+      "$select": "buildingid,bin,block,lot",
+      "$where": `buildingid in (${ids})`,
+      "$limit": "1000",
+    });
+    const res = await fetch(`${REGISTRY}?${params}`);
+    if (!res.ok) break;
+    const { data } = await db.rpc("enrich_buildings_from_registry", { p_rows: await res.json() });
+    enriched += data ?? 0;
+  }
+  return enriched;
+}
