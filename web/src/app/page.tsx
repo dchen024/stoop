@@ -3,7 +3,7 @@ import { BuildingSearch } from "@/components/building-search";
 import { ComplaintMap } from "@/components/complaint-map";
 import { createClient } from "@/lib/supabase/server";
 import { categoryLabel } from "@/lib/categories";
-import { currentSeason, fmtDate, timeAgo, titleCase } from "@/lib/format";
+import { currentSeason, fmtDate, SOURCE_STATE, timeAgo, titleCase } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +26,13 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
   const openOnly = sp.open !== "0";
   const sort = SORTS.find((x) => x.key === sp.sort)?.key ?? "complaints";
 
-  const [top, points, freshness] = await Promise.all([
+  const [top, points, freshness, feed] = await Promise.all([
     supabase.rpc("top_buildings", { p_category: selected ?? undefined, p_limit: 10, p_sort: sort }),
     supabase.rpc("map_buildings", { p_category: selected ?? undefined, p_open_only: openOnly, p_limit: 3000 }),
     supabase.from("data_freshness").select("*").single(),
+    supabase.from("source_status").select("state").eq("source", "hpd_complaints").maybeSingle(),
   ]);
+  const feedState = feed.data?.state ?? "healthy";
 
   const row = selected ? cats.find((c) => c.category === selected) : null;
   const totals = row ?? {
@@ -182,6 +184,11 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
       )}
 
       <p className="text-xs text-stone-500">
+        {feedState !== "healthy" && (
+          <Link href="/status" className={`mr-2 rounded-full px-2 py-0.5 font-medium ${SOURCE_STATE[feedState]?.tone ?? ""}`}>
+            City feed: {SOURCE_STATE[feedState]?.label ?? feedState}
+          </Link>
+        )}
         Synced {timeAgo(freshness.data?.last_successful_sync)} · city data as of {fmtDate(freshness.data?.city_last_updated, true)} ·
         newest complaint {fmtDate(freshness.data?.newest_complaint, true)}
       </p>

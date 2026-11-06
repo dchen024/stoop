@@ -29,12 +29,13 @@ In the past 12 months New Yorkers filed **999,691 complaints** with the city's h
 NYC Open Data (HPD complaints, daily)        HPD building registry
             │                                         │
    pg_cron every 15 min ──► Edge Function ingest-hpd ─┘
-   (secret in Vault)              │  pages of 2,500 rows
+   (secret in Vault)              │  pages of 2,000 rows after the saved position
                                   ▼
           ingest_hpd_batch()  ── one transaction per page ──
-          validate → quarantine rejects → upsert buildings
+          validate → quarantine rejects → upsert buildings (only if changed)
           → upsert complaints (only newer city updates)
-          → refresh building_stats → triggers fan out alerts
+          → refresh building_stats (changed buildings) → triggers fan out alerts
+          → save position
                                   │
               Postgres (RLS on every table) ── Realtime ──► Next.js on Vercel
                                                             (Auth: magic link + guest)
@@ -44,7 +45,7 @@ NYC Open Data (HPD complaints, daily)        HPD building registry
 |---|---|
 | Postgres schema | enums, FKs, CHECK constraints, generated columns (heat season, normalized address) |
 | Indexes | trigram (fuzzy address search), partial (open complaints), composite (building+time, season+category) |
-| Row-level security | all 10 tables; official data writable only by the service-role ingest; user rows scoped to `auth.uid()`; column-level grants |
+| Row-level security | all 11 tables; official data writable only by the service-role ingest; user rows scoped to `auth.uid()`; column-level grants |
 | Functions / RPC | `search_buildings`, `category_summary`, `top_buildings`, `map_buildings`, `ingest_hpd_batch` |
 | Triggers | statement-level with transition tables: one set-based alert insert per ingest batch |
 | Edge Functions | `ingest-hpd`: fetch, forward, enrich BIN/BBL from the HPD registry |
@@ -57,7 +58,7 @@ NYC Open Data (HPD complaints, daily)        HPD building registry
 1. **Validate before it lands.** Bad rows go to a private `ingest_rejects` quarantine with the reason, never into app tables.
 2. **Constraints the database enforces:** BBL/BIN formats, coordinates inside NYC, counts that add up, resolved reports have a resolved date.
 3. **Idempotent and monotonic.** Keyed by HPD `problem_id`; an older city update can never overwrite a newer one. Re-running a sync writes nothing.
-4. **Freshness controls.** City publish time and our sync time are stored separately and shown in the app. HPD stamps each daily batch with one timestamp, so syncs resume only from the last *successful* run; crashed runs are marked failed and retried.
+4. **Freshness controls.** City publish time and our sync time are stored separately and shown in the app. HPD stamps each daily batch with one timestamp, so each page saves a position of (`:updated_at`, Socrata `:id`) in the same transaction as its rows, and the next sync continues right after it. A big batch is worked through over several runs (`partial`) instead of having to fit in one. City API errors are retried, and an outage is recorded as `upstream_down`, not as our failure. `/status` shows each data source as healthy, catching up, city API down, failing, or stalled.
 5. **Sodabase** watches all 10 tables (freshness + volume) plus 10 recurring rules.
 6. **Fixed at the source.** Sodabase flagged 99 buildings missing BBL. Root cause: the city feed omits it on some rows. The ingest now derives BBL from block and lot and fills BIN from HPD's registry: missing BBL 99 → 0, BIN 98 → 69 (not published by the city at all).
 

@@ -276,6 +276,27 @@ export type Database = {
           },
         ]
       }
+      ingest_cursors: {
+        Row: {
+          row_id: string | null
+          saved_at: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          row_id?: string | null
+          saved_at?: string
+          source: string
+          updated_at: string
+        }
+        Update: {
+          row_id?: string | null
+          saved_at?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ingest_rejects: {
         Row: {
           created_at: string
@@ -313,13 +334,16 @@ export type Database = {
       }
       ingest_runs: {
         Row: {
+          enriched: number | null
           error: string | null
           finished_at: string | null
           id: number
           newest_received_at: string | null
           newest_source_update: string | null
+          registry_error: string | null
           rows_fetched: number
           rows_rejected: number
+          rows_remaining: number | null
           rows_upserted: number
           source: string
           started_at: string
@@ -327,13 +351,16 @@ export type Database = {
           watermark_from: string | null
         }
         Insert: {
+          enriched?: number | null
           error?: string | null
           finished_at?: string | null
           id?: never
           newest_received_at?: string | null
           newest_source_update?: string | null
+          registry_error?: string | null
           rows_fetched?: number
           rows_rejected?: number
+          rows_remaining?: number | null
           rows_upserted?: number
           source: string
           started_at?: string
@@ -341,13 +368,16 @@ export type Database = {
           watermark_from?: string | null
         }
         Update: {
+          enriched?: number | null
           error?: string | null
           finished_at?: string | null
           id?: never
           newest_received_at?: string | null
           newest_source_update?: string | null
+          registry_error?: string | null
           rows_fetched?: number
           rows_rejected?: number
+          rows_remaining?: number | null
           rows_upserted?: number
           source?: string
           started_at?: string
@@ -470,11 +500,30 @@ export type Database = {
         }
         Relationships: []
       }
+      source_status: {
+        Row: {
+          endpoint: string | null
+          label: string | null
+          last_caught_up_at: string | null
+          last_contact_at: string | null
+          last_error: string | null
+          last_run_at: string | null
+          last_status: string | null
+          rows_remaining: number | null
+          source: string | null
+          state: string | null
+          streak_runs: number | null
+          streak_since: string | null
+          synced_through: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       begin_ingest_run: {
         Args: { p_source?: string }
         Returns: {
+          cursor_row_id: string
           run_id: number
           watermark_from: string
         }[]
@@ -505,7 +554,14 @@ export type Database = {
         Returns: number
       }
       finish_ingest_run: {
-        Args: { p_error?: string; p_run_id: number }
+        Args: {
+          p_enriched?: number
+          p_error?: string
+          p_registry_error?: string
+          p_rows_remaining?: number
+          p_run_id: number
+          p_status?: Database["public"]["Enums"]["ingest_status"]
+        }
         Returns: undefined
       }
       heat_season: { Args: { ts: string }; Returns: number }
@@ -578,7 +634,12 @@ export type Database = {
         | "violation_issued"
         | "other"
       complaint_status: "OPEN" | "CLOSE"
-      ingest_status: "running" | "succeeded" | "failed"
+      ingest_status:
+        | "running"
+        | "succeeded"
+        | "partial"
+        | "upstream_down"
+        | "failed"
       report_status: "open" | "resolved"
       watch_relationship: "live_here" | "considering" | "organizing"
     }
@@ -719,7 +780,7 @@ export const Constants = {
         "other",
       ],
       complaint_status: ["OPEN", "CLOSE"],
-      ingest_status: ["running", "succeeded", "failed"],
+      ingest_status: ["running", "succeeded", "partial", "upstream_down", "failed"],
       report_status: ["open", "resolved"],
       watch_relationship: ["live_here", "considering", "organizing"],
     },
