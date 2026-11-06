@@ -162,9 +162,10 @@ export default async function StatusPage() {
             every table.
           </Check>
           <Check title="Fixed at the source">
-            Sodabase flagged 99 buildings missing a BBL. The city feed omits it on some rows, so the pipeline now derives it from
-            block and lot and fills BINs from HPD&apos;s building registry. Missing BBL: <strong>{missingBbl ?? 0}</strong>.
-            Missing BIN: <strong>{missingBin ?? 0}</strong> (not published by the city for those buildings).
+            Sodabase flagged buildings missing a BBL and a BIN. The city feed omits them on some rows, so the pipeline derives
+            BBL from block and lot, treats the city&apos;s placeholder BINs (1000000, 2000000, …) as missing, and fills real BINs
+            from HPD&apos;s building registry. Missing BBL: <strong>{missingBbl ?? 0}</strong>. Missing BIN:{" "}
+            <strong>{missingBin ?? 0}</strong> (not published by the city for those buildings).
           </Check>
         </ul>
       </section>

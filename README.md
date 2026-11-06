@@ -60,7 +60,7 @@ NYC Open Data (HPD complaints, daily)        HPD building registry
 3. **Idempotent and monotonic.** Keyed by HPD `problem_id`; an older city update can never overwrite a newer one. Re-running a sync writes nothing.
 4. **Freshness controls.** City publish time and our sync time are stored separately and shown in the app. HPD stamps each daily batch with one timestamp, so each page saves a position of (`:updated_at`, Socrata `:id`) in the same transaction as its rows, and the next sync continues right after it. A big batch is worked through over several runs (`partial`) instead of having to fit in one. City API errors are retried, and an outage is recorded as `upstream_down`, not as our failure. `/status` shows each data source as healthy, catching up, city API down, failing, or stalled.
 5. **Sodabase** watches all 10 tables (freshness + volume) plus 10 recurring rules.
-6. **Fixed at the source.** Sodabase flagged 99 buildings missing BBL. Root cause: the city feed omits it on some rows. The ingest now derives BBL from block and lot and fills BIN from HPD's registry: missing BBL 99 → 0, BIN 98 → 69 (not published by the city at all).
+6. **Fixed at the source.** Sodabase flagged 99 buildings missing BBL. Root cause: the city feed omits it on some rows. The ingest now derives BBL from block and lot and fills BIN from HPD's registry: missing BBL 99 → 0, BIN 98 → 69. A closer look found 161 more buildings holding NYC's placeholder BINs (1000000 … 5000000, "none assigned"), which also blocked the registry fill. Placeholders are now treated as missing and kept out by a constraint: buildings without a real BIN 230 → 86 (not published by the city at all).
 
 ## Repo layout
 
