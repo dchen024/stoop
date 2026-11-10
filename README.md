@@ -2,8 +2,8 @@
 
 **Know what's going on in your building.** Every official NYC housing complaint about your building, how each one was actually closed, and reports from your neighbors, with live alerts when something changes.
 
-- **Live app:** https://stoop-soda.vercel.app
-- **Data health:** https://stoop-soda.vercel.app/status
+- **Live app:** https://stoop.dchen.us
+- **Data health:** https://stoop.dchen.us/status
 - Built at the Supabase × Sodabase × BuilderBase NYC Hackathon, Nov 4 2026.
 
 ![Explore NYC by issue: filter chips, live stats, a map of buildings with open complaints, and the most-reported buildings](docs/screenshots/map-pests.jpg)
