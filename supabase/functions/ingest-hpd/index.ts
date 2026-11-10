@@ -4,11 +4,19 @@
 // so most runs find nothing new. That is fine: every run is still recorded in
 // public.ingest_runs, which is how the app shows "synced 4 min ago, city data as of ...".
 //
-// All validation and writes happen in public.ingest_hpd_batch() (one transaction
-// per page), so this function only fetches and forwards. Each page also saves the
-// position it reached, so a big daily batch is worked through over several runs
-// instead of having to fit in one.
+// This function only fetches. Each page goes to public.enqueue_hpd_page(), which
+// puts it on the hpd_ingest queue in 500-row batches and saves the position it
+// reached, in one transaction. pg_cron runs public.drain_hpd_queue() every minute to
+// validate and write the batches, retrying any that fail (see the 2026-11-10
+// migration). A big daily batch is still read over several runs if it has to be.
+//
+// Sentry (project "stoop"): every run checks in to the "ingest-hpd" cron monitor, so a
+// sync that stops running or fails twice in a row opens an issue. Our own failures are
+// sent as errors; city outages (upstream_down) are not, since the status page covers
+// them. Each run also reports queued batches that were set aside after repeated
+// failures, and a queue that has stopped draining.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
+import * as Sentry from "npm:@sentry/deno@11.9.0";
 
 const SOURCE = "https://data.cityofnewyork.us/resource/ygpa-z7cr.json";
 const REGISTRY = "https://data.cityofnewyork.us/resource/kj4p-ruqc.json"; // HPD Buildings Subject to HPD Jurisdiction
@@ -20,14 +28,49 @@ const RETRY_DELAYS_MS = [2_000, 5_000];
 
 type Cursor = { updatedAt: string; rowId: string | null };
 
+const MONITOR = "ingest-hpd";
+const QUEUE_STUCK_AFTER_S = 30 * 60; // the drain runs every minute; a batch this old means it isn't
+const sentryOn = !!Deno.env.get("SENTRY_DSN");
+if (sentryOn) {
+  Sentry.init({
+    dsn: Deno.env.get("SENTRY_DSN"),
+    environment: Deno.env.get("SENTRY_ENVIRONMENT") ?? "production",
+    defaultIntegrations: false, // one request per invocation; we report explicitly and flush
+    tracesSampleRate: 0,
+  });
+}
+
 class UpstreamError extends Error {}
+
+type Outcome = { res: Response; ok: boolean; error?: unknown; runId?: number };
 
 Deno.serve(async (req) => {
   const secret = Deno.env.get("CRON_SECRET");
   if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) {
+    // No check-in: if the scheduler's secret is wrong, the monitor reports missed runs.
     return new Response("unauthorized", { status: 401 });
   }
+  if (!sentryOn) return (await sync()).res;
 
+  const checkInId = Sentry.captureCheckIn(
+    { monitorSlug: MONITOR, status: "in_progress" },
+    { schedule: { type: "crontab", value: "*/15 * * * *" }, timezone: "UTC", checkinMargin: 5, maxRuntime: 5 },
+  );
+  let outcome: Outcome;
+  try {
+    outcome = await sync();
+  } catch (e) {
+    outcome = { res: Response.json({ error: String(e) }, { status: 500 }), ok: false, error: e };
+  }
+  if (outcome.error) {
+    Sentry.captureException(outcome.error, { tags: { monitor: MONITOR }, extra: { run_id: outcome.runId } });
+  }
+  Sentry.captureCheckIn({ checkInId, monitorSlug: MONITOR, status: outcome.ok ? "ok" : "error" });
+  await Sentry.flush(3_000);
+  return outcome.res;
+});
+
+async function sync(): Promise<Outcome> {
   const db = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
@@ -38,12 +81,13 @@ Deno.serve(async (req) => {
     .rpc("begin_ingest_run", { p_source: "hpd_complaints" })
     .single<{ run_id: number; watermark_from: string; cursor_row_id: string | null }>();
   if (beginError || !run) {
-    return Response.json({ error: beginError?.message ?? "no run" }, { status: 500 });
+    const message = beginError?.message ?? "no run";
+    return { res: Response.json({ error: message }, { status: 500 }), ok: false, error: new Error(`begin_ingest_run: ${message}`) };
   }
 
   const started = Date.now();
   const left = () => HARD_DEADLINE_MS - (Date.now() - started);
-  const totals = { fetched: 0, upserted: 0, rejected: 0 };
+  const totals = { fetched: 0, queuedBatches: 0 }; // rows are written by drain_hpd_queue()
   let cursor: Cursor = { updatedAt: socrataTime(run.watermark_from), rowId: run.cursor_row_id };
   let caughtUp = false;
 
@@ -62,11 +106,10 @@ Deno.serve(async (req) => {
         break;
       }
 
-      const { data, error } = await db.rpc("ingest_hpd_batch", { p_run_id: run.run_id, p_rows: rows });
+      const { data, error } = await db.rpc("enqueue_hpd_page", { p_run_id: run.run_id, p_rows: rows });
       if (error) throw new Error(error.message);
       totals.fetched += data.fetched;
-      totals.upserted += data.upserted;
-      totals.rejected += data.rejected;
+      totals.queuedBatches += data.queued_batches;
 
       const last = rows[rows.length - 1];
       cursor = { updatedAt: socrataTime(last[":updated_at"]), rowId: last[":id"] };
@@ -83,14 +126,53 @@ Deno.serve(async (req) => {
       rowsRemaining: remaining,
       ...registry,
     });
-    return Response.json({ run_id: run.run_id, caught_up: caughtUp, rows_remaining: remaining, ...totals, ...registry });
+    await reportQueue(db, run.run_id);
+    return {
+      res: Response.json({ run_id: run.run_id, caught_up: caughtUp, rows_remaining: remaining, ...totals, ...registry }),
+      ok: true,
+      runId: run.run_id,
+    };
   } catch (e) {
     const message = (e instanceof Error ? e.message : String(e)).slice(0, 500);
-    const status = e instanceof UpstreamError ? "upstream_down" : "failed";
+    const upstream = e instanceof UpstreamError;
+    const status = upstream ? "upstream_down" : "failed";
     await finish(db, run.run_id, { status, error: message });
-    return Response.json({ run_id: run.run_id, status, error: message, ...totals }, { status: 500 });
+    await reportQueue(db, run.run_id);
+    return {
+      res: Response.json({ run_id: run.run_id, status, error: message, ...totals }, { status: 500 }),
+      // A city outage is not our failure: the run did its job and the status page shows it.
+      ok: upstream,
+      error: upstream ? undefined : e,
+      runId: run.run_id,
+    };
   }
-});
+}
+
+// The queue is drained by pg_cron, which can't reach Sentry, so each sync reports on it.
+// deno-lint-ignore no-explicit-any
+async function reportQueue(db: any, runId: number) {
+  if (!sentryOn) return;
+  const { data, error } = await db.rpc("hpd_queue_health", { p_run_id: runId });
+  if (error || !data) {
+    Sentry.captureMessage(`hpd_queue_health failed: ${error?.message ?? "no data"}`, "warning");
+    return;
+  }
+  const h = data as { batches: number; oldest_age_s: number | null; dead_since_last_run: number; last_dead_error: string | null };
+  if (h.dead_since_last_run > 0) {
+    Sentry.captureMessage("Sync queue set aside batches after repeated failures", {
+      level: "error",
+      fingerprint: ["hpd-queue-dead-letter"],
+      extra: { ...h, see: "public.ingest_queue_failures; rows kept in pgmq.a_hpd_ingest" },
+    });
+  }
+  if (h.oldest_age_s != null && h.oldest_age_s > QUEUE_STUCK_AFTER_S) {
+    Sentry.captureMessage("Sync queue is not draining", {
+      level: "error",
+      fingerprint: ["hpd-queue-stuck"],
+      extra: { ...h, check: "cron job drain-hpd-queue (cron.job_run_details)" },
+    });
+  }
+}
 
 // Socrata compares :updated_at against a floating timestamp (no zone suffix).
 function socrataTime(iso: string): string {

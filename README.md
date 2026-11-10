@@ -80,4 +80,14 @@ npm install
 npm run dev
 ```
 
+## Deploying
+
+The Vercel project's Root Directory is `web/`, so every push and PR gets a preview build. Production goes out from the repo root (`.vercelignore` uploads only `web/`):
+
+```bash
+vercel deploy --prod --yes
+```
+
+Database migrations and the `ingest-hpd` function are deployed separately with the Supabase CLI.
+
 Data: NYC HPD via NYC Open Data. Map tiles © OpenStreetMap contributors.

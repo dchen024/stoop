@@ -190,7 +190,10 @@ function SourceCard({ s }: { s: Source }) {
         detail = `Up to date as of ${timeAgo(s.last_run_at)}.`;
         break;
       case "catching_up":
-        detail = `Working through a new city batch${s.rows_remaining != null ? `: about ${s.rows_remaining.toLocaleString()} rows left` : ""}. Each sync continues where the last one stopped.`;
+        detail =
+          s.last_status === "succeeded" && s.queued_batches
+            ? `Read the latest city batch; writing it now (${s.queued_batches.toLocaleString()} batch${s.queued_batches === 1 ? "" : "es"} of up to 500 rows left).`
+            : `Working through a new city batch${s.rows_remaining != null ? `: about ${s.rows_remaining.toLocaleString()} rows left` : ""}. Each sync continues where the last one stopped.`;
         break;
       case "upstream_down":
         detail = `NYC Open Data is not answering${streak ? ` (${streak})` : ""}. What we already have is intact; syncing resumes on its own when the city is back.`;
