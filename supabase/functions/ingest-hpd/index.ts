@@ -4,10 +4,11 @@
 // so most runs find nothing new. That is fine: every run is still recorded in
 // public.ingest_runs, which is how the app shows "synced 4 min ago, city data as of ...".
 //
-// All validation and writes happen in public.ingest_hpd_batch() (one transaction
-// per page), so this function only fetches and forwards. Each page also saves the
-// position it reached, so a big daily batch is worked through over several runs
-// instead of having to fit in one.
+// This function only fetches. Each page goes to public.enqueue_hpd_page(), which
+// puts it on the hpd_ingest queue in 500-row batches and saves the position it
+// reached, in one transaction. pg_cron runs public.drain_hpd_queue() every minute to
+// validate and write the batches, retrying any that fail (see the 2026-11-10
+// migration). A big daily batch is still read over several runs if it has to be.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const SOURCE = "https://data.cityofnewyork.us/resource/ygpa-z7cr.json";
@@ -43,7 +44,7 @@ Deno.serve(async (req) => {
 
   const started = Date.now();
   const left = () => HARD_DEADLINE_MS - (Date.now() - started);
-  const totals = { fetched: 0, upserted: 0, rejected: 0 };
+  const totals = { fetched: 0, queuedBatches: 0 }; // rows are written by drain_hpd_queue()
   let cursor: Cursor = { updatedAt: socrataTime(run.watermark_from), rowId: run.cursor_row_id };
   let caughtUp = false;
 
@@ -62,11 +63,10 @@ Deno.serve(async (req) => {
         break;
       }
 
-      const { data, error } = await db.rpc("ingest_hpd_batch", { p_run_id: run.run_id, p_rows: rows });
+      const { data, error } = await db.rpc("enqueue_hpd_page", { p_run_id: run.run_id, p_rows: rows });
       if (error) throw new Error(error.message);
       totals.fetched += data.fetched;
-      totals.upserted += data.upserted;
-      totals.rejected += data.rejected;
+      totals.queuedBatches += data.queued_batches;
 
       const last = rows[rows.length - 1];
       cursor = { updatedAt: socrataTime(last[":updated_at"]), rowId: last[":id"] };

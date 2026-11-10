@@ -509,6 +509,7 @@ export type Database = {
           last_error: string | null
           last_run_at: string | null
           last_status: string | null
+          queued_batches: number | null
           rows_remaining: number | null
           source: string | null
           state: string | null
