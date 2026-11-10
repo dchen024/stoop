@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -47,7 +48,7 @@ function LoginForm() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Keep an eye on your building</h1>
         <p className="mt-1 text-stone-600 dark:text-stone-400">
-          Watch buildings, get alerted when new complaints come in, and report problems the city hasn&apos;t caught yet.
+          Watch buildings and get alerted when new complaints come in or open ones are closed.
         </p>
       </div>
 
@@ -92,6 +93,18 @@ function LoginForm() {
       </button>
 
       {state === "error" && <p className="text-sm text-red-700 dark:text-red-400">{message}</p>}
+
+      <p className="text-xs text-stone-500">
+        By continuing you agree to our{" "}
+        <Link href="/terms" className="underline">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="underline">
+          Privacy policy
+        </Link>
+        . We record what you view on Stoop to improve it, and may email you about Stoop.
+      </p>
     </div>
   );
 }

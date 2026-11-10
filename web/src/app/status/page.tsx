@@ -4,7 +4,7 @@ import { fmtDate, RUN_STATUS, SOURCE_STATE, timeAgo } from "@/lib/format";
 import type { Database } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Data health · Stoop" };
+export const metadata: Metadata = { title: "Data health" };
 
 const SYNC_EVERY_MIN = 15;
 const TABLE_ROWS = 12;

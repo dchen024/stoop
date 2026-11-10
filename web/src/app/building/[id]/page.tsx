@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BuildingCommunity } from "@/components/building-community";
+import { ShareButton } from "@/components/share-button";
 import { createClient } from "@/lib/supabase/server";
 import { categoryLabel } from "@/lib/categories";
 import { OUTCOME, currentSeason, fmtDate, titleCase } from "@/lib/format";
@@ -9,6 +11,28 @@ export const dynamic = "force-dynamic";
 
 type Params = Promise<{ id: string }>;
 type SearchParams = Promise<{ c?: string }>;
+
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const buildingId = Number((await params).id);
+  if (!Number.isSafeInteger(buildingId)) return {};
+  const supabase = await createClient();
+  const [{ data: b }, { data: stats }] = await Promise.all([
+    supabase.from("buildings").select("address, borough, postcode").eq("building_id", buildingId).maybeSingle(),
+    supabase.from("building_stats").select("complaints_total, complaints_open").eq("building_id", buildingId).eq("season", currentSeason()).maybeSingle(),
+  ]);
+  if (!b) return {};
+  const address = titleCase(b.address);
+  const where = `${titleCase(b.borough)} ${b.postcode ?? ""}`.trim();
+  const description = stats
+    ? `${stats.complaints_total} housing complaints this season at ${address}, ${where}${stats.complaints_open ? `, ${stats.complaints_open} still open` : ""}. Official NYC HPD records, updated every 15 minutes.`
+    : `Official NYC housing complaints for ${address}, ${where}, updated every 15 minutes.`;
+  return {
+    title: `${address}, ${where}: housing complaints`,
+    description,
+    alternates: { canonical: `/building/${buildingId}` },
+    openGraph: { title: `${address}, ${where}`, description, url: `/building/${buildingId}` },
+  };
+}
 
 export default async function BuildingPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const { id } = await params;
@@ -67,10 +91,15 @@ export default async function BuildingPage({ params, searchParams }: { params: P
         <Link href={backHref} className="text-sm text-stone-500 hover:underline">
           ← {selected ? `Back to ${categoryLabel(selected).toLowerCase()} across NYC` : "Search another building"}
         </Link>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{titleCase(building.address)}</h1>
-        <p className="text-stone-600 dark:text-stone-400">
-          {titleCase(building.nta)} · {titleCase(building.borough)} {building.postcode}
-        </p>
+        <div className="mt-2 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{titleCase(building.address)}</h1>
+            <p className="text-stone-600 dark:text-stone-400">
+              {titleCase(building.nta)} · {titleCase(building.borough)} {building.postcode}
+            </p>
+          </div>
+          <ShareButton buildingId={buildingId} title={titleCase(building.address)} />
+        </div>
       </div>
 
       <nav aria-label="Filter by issue" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:px-0">

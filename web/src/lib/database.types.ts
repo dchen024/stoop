@@ -521,6 +521,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_dashboard: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
+      is_admin: {
+        Args: never
+        Returns: boolean
+      }
       begin_ingest_run: {
         Args: { p_source?: string }
         Returns: {

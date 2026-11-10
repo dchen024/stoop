@@ -130,7 +130,7 @@ function AlertsBell({ userId }: { userId: string }) {
             <p className="px-4 py-6 text-center text-sm text-stone-500">Loading…</p>
           ) : alerts.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-stone-500">
-              No alerts yet. Watch a building to get notified about new complaints and neighbor reports.
+              No alerts yet. Watch a building to get notified about new and closed complaints.
             </p>
           ) : (
             <ul className="max-h-[60vh] divide-y divide-stone-100 overflow-y-auto dark:divide-stone-800">

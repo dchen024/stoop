@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { fmtDate } from "@/lib/format";
 import { categoryLabel } from "@/lib/categories";
 import type { Database } from "@/lib/database.types";
+import { REPORTS_ENABLED } from "@/lib/features";
 
 type Report = Pick<
   Database["public"]["Tables"]["resident_reports"]["Row"],
@@ -49,6 +50,7 @@ export function BuildingCommunity({
 
   // New resident reports for this building appear live (Realtime, RLS-filtered).
   useEffect(() => {
+    if (!REPORTS_ENABLED) return;
     const channel = supabase
       .channel(`reports-${buildingId}`)
       .on(
@@ -102,7 +104,7 @@ export function BuildingCommunity({
   return (
     <section className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h2 className="text-lg font-semibold">From residents</h2>
+        <h2 className="text-lg font-semibold">{REPORTS_ENABLED ? "From residents" : "Get alerts for this building"}</h2>
         <div className="flex gap-2">
           {user ? (
             <>
@@ -117,25 +119,27 @@ export function BuildingCommunity({
               >
                 {watching ? "Watching ✓" : "Watch this building"}
               </button>
+              {REPORTS_ENABLED && (
               <button
                 onClick={() => setShowForm((s) => !s)}
                 className="flex-1 rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium hover:bg-stone-100 sm:flex-none dark:border-stone-700 dark:hover:bg-stone-900"
               >
                 Report a problem
               </button>
+              )}
             </>
           ) : (
             <Link
               href={loginHref}
               className="w-full rounded-xl bg-orange-700 px-4 py-2 text-center text-sm font-semibold text-white hover:bg-orange-800 sm:w-auto"
             >
-              Watch or report a problem
+              {REPORTS_ENABLED ? "Watch or report a problem" : "Watch this building"}
             </Link>
           )}
         </div>
       </div>
 
-      {showForm && user && (
+      {REPORTS_ENABLED && showForm && user && (
         <form
           onSubmit={submitReport}
           className="space-y-3 rounded-xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900"
@@ -195,7 +199,11 @@ export function BuildingCommunity({
         </form>
       )}
 
-      {shown.length === 0 ? (
+      {!REPORTS_ENABLED ? (
+        <p className="text-sm text-stone-500">
+          Watch this building to get an alert when a new complaint is filed or an open one is closed.
+        </p>
+      ) : shown.length === 0 ? (
         <p className="text-sm text-stone-500">No resident reports yet. Neighbors who watch this building get alerted when you post one.</p>
       ) : (
         <ul className="space-y-2">

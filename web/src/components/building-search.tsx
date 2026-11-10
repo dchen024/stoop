@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { titleCase } from "@/lib/format";
+import { track } from "@/lib/analytics/client";
 
 type Result = {
   building_id: number;
@@ -19,6 +20,18 @@ export function BuildingSearch() {
   const [results, setResults] = useState<Result[]>([]);
   const [loading, setLoading] = useState(false);
   const seq = useRef(0);
+  const loggedMiss = useRef("");
+
+  // A search that keeps finding nothing for 1.5 s is a missing or misspelled address: worth knowing.
+  useEffect(() => {
+    const term = q.trim();
+    if (loading || term.length < 3 || results.length > 0 || loggedMiss.current === term) return;
+    const t = setTimeout(() => {
+      loggedMiss.current = term;
+      track({ name: "search_no_result", props: { query: term } });
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [q, loading, results.length]);
 
   useEffect(() => {
     const term = q.trim();
@@ -65,6 +78,9 @@ export function BuildingSearch() {
             <li key={r.building_id}>
               <Link
                 href={`/building/${r.building_id}`}
+                onClick={() =>
+                  track({ name: "search", props: { query: q.trim(), results: results.length }, buildingId: r.building_id })
+                }
                 className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-orange-50 dark:hover:bg-stone-800"
               >
                 <span>

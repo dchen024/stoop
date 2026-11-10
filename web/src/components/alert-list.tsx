@@ -44,7 +44,7 @@ export function AlertList({ userId, initial }: { userId: string; initial: AlertR
   if (alerts.length === 0) {
     return (
       <p className="text-stone-500">
-        No alerts yet. Watch a building and you&apos;ll see new complaints and neighbor reports here.
+        No alerts yet. Watch a building and you&apos;ll see new and closed complaints here.
       </p>
     );
   }

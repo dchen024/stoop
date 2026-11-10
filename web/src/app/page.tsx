@@ -56,8 +56,8 @@ export default async function Home({ searchParams }: { searchParams: SearchParam
       <section className="space-y-4">
         <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Know what&apos;s going on in your building.</h1>
         <p className="max-w-2xl text-stone-600 dark:text-stone-400">
-          Every official housing complaint New Yorkers file with the city, plus reports from your neighbors. Look up
-          where you live, or where you&apos;re about to sign a lease.
+          Every official housing complaint New Yorkers file with the city, updated every 15 minutes. Look up where
+          you live, or where you&apos;re about to sign a lease.
         </p>
         <BuildingSearch />
       </section>

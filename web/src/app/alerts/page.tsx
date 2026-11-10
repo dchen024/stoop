@@ -23,7 +23,7 @@ export default async function AlertsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Alerts</h1>
         <p className="text-sm text-stone-500">
-          New official complaints, closed complaints and neighbor reports for buildings you watch. Updates live.
+          New and closed official complaints for buildings you watch. Updates live.
         </p>
       </div>
       <AlertList userId={user.id} initial={(alerts as AlertRow[] | null) ?? []} />
