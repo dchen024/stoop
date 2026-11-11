@@ -611,6 +611,10 @@ export type Database = {
         Args: { p_days?: number }
         Returns: Json
       }
+      admin_dropped_values: {
+        Args: { p_limit?: number }
+        Returns: Json
+      }
       is_admin: {
         Args: never
         Returns: boolean
