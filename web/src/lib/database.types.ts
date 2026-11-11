@@ -69,6 +69,92 @@ export type Database = {
           },
         ]
       }
+      building_aliases: {
+        Row: {
+          alias_id: number
+          canonical_id: number
+          created_at: string
+          reason: string
+        }
+        Insert: {
+          alias_id: number
+          canonical_id: number
+          created_at?: string
+          reason: string
+        }
+        Update: {
+          alias_id?: number
+          canonical_id?: number
+          created_at?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "building_aliases_alias_id_fkey"
+            columns: ["alias_id"]
+            isOneToOne: true
+            referencedRelation: "buildings"
+            referencedColumns: ["building_id"]
+          },
+          {
+            foreignKeyName: "building_aliases_canonical_id_fkey"
+            columns: ["canonical_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["building_id"]
+          },
+        ]
+      }
+      building_checks: {
+        Row: {
+          bin_filled_at: string | null
+          building_id: number
+          geo_bbl: string | null
+          geo_bin: string | null
+          geo_checked_at: string | null
+          geo_status: string | null
+          lot_bbl: string | null
+          lot_cd: number | null
+          lot_checked_at: string | null
+          lot_council: number | null
+          lot_found: boolean | null
+        }
+        Insert: {
+          bin_filled_at?: string | null
+          building_id: number
+          geo_bbl?: string | null
+          geo_bin?: string | null
+          geo_checked_at?: string | null
+          geo_status?: string | null
+          lot_bbl?: string | null
+          lot_cd?: number | null
+          lot_checked_at?: string | null
+          lot_council?: number | null
+          lot_found?: boolean | null
+        }
+        Update: {
+          bin_filled_at?: string | null
+          building_id?: number
+          geo_bbl?: string | null
+          geo_bin?: string | null
+          geo_checked_at?: string | null
+          geo_status?: string | null
+          lot_bbl?: string | null
+          lot_cd?: number | null
+          lot_checked_at?: string | null
+          lot_council?: number | null
+          lot_found?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "building_checks_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: true
+            referencedRelation: "buildings"
+            referencedColumns: ["building_id"]
+          },
+        ]
+      }
       building_stats: {
         Row: {
           building_id: number
@@ -541,6 +627,18 @@ export type Database = {
         Args: { b: Database["public"]["Enums"]["borough"] }
         Returns: string
       }
+      buildings_to_check: {
+        Args: { p_limit?: number }
+        Returns: {
+          bbl: string
+          borough: Database["public"]["Enums"]["borough"]
+          building_id: number
+          check_address: boolean
+          check_lot: boolean
+          house_number: string
+          street_name: string
+        }[]
+      }
       category_summary: {
         Args: { p_season?: number }
         Returns: {
@@ -556,6 +654,10 @@ export type Database = {
           status: Database["public"]["Enums"]["complaint_status"]
         }
         Returns: Database["public"]["Enums"]["closure_reason"]
+      }
+      community_board_max: {
+        Args: { p_borough: Database["public"]["Enums"]["borough"] }
+        Returns: number
       }
       current_season: { Args: never; Returns: number }
       enrich_buildings_from_registry: {
@@ -602,6 +704,8 @@ export type Database = {
           open_complaints: number
         }[]
       }
+      refresh_building_aliases: { Args: never; Returns: number }
+      save_building_checks: { Args: { p_rows: Json }; Returns: Json }
       search_buildings: {
         Args: { max_results?: number; q: string }
         Returns: {

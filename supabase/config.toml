@@ -4,6 +4,9 @@ project_id = "stoop"
 [functions.ingest-hpd]
 verify_jwt = false
 
+[functions.check-buildings]
+verify_jwt = false
+
 [auth]
 site_url = "https://stoop.dchen.us"
 additional_redirect_urls = ["https://stoop.dchen.us/**", "https://stoop-soda.vercel.app/**", "https://stoop-livid.vercel.app/**", "http://localhost:3000/**", "https://*-dchen024s-projects.vercel.app/**"]
