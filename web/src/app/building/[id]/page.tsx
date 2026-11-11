@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { BuildingCommunity } from "@/components/building-community";
 import { ShareButton } from "@/components/share-button";
 import { createClient } from "@/lib/supabase/server";
@@ -43,6 +43,16 @@ export default async function BuildingPage({ params, searchParams }: { params: P
   const supabase = await createClient();
   const season = currentSeason();
 
+  // HPD sometimes registers one building under two ids (see building_aliases). The
+  // duplicate id redirects here, and this page shows complaints filed under either.
+  const { data: aliases } = await supabase
+    .from("building_aliases")
+    .select("alias_id, canonical_id")
+    .or(`alias_id.eq.${buildingId},canonical_id.eq.${buildingId}`);
+  const canonicalId = aliases?.find((a) => a.alias_id === buildingId)?.canonical_id;
+  if (canonicalId) redirect(`/building/${canonicalId}${sp.c ? `?c=${encodeURIComponent(sp.c)}` : ""}`);
+  const ids = [buildingId, ...(aliases ?? []).map((a) => a.alias_id)];
+
   const [{ data: building }, { data: complaints }, { data: categoryRows }, { data: reports }] = await Promise.all([
     supabase.from("buildings").select("*").eq("building_id", buildingId).maybeSingle(),
     supabase
@@ -50,7 +60,7 @@ export default async function BuildingPage({ params, searchParams }: { params: P
       .select(
         "problem_id, complaint_id, apartment, category, subcategory, problem_code, problem_status, received_at, status_changed_at, season, status_descriptions(closure_reason)",
       )
-      .eq("building_id", buildingId)
+      .in("building_id", ids)
       .eq("season", season)
       .order("received_at", { ascending: false })
       .limit(1000),
@@ -58,7 +68,7 @@ export default async function BuildingPage({ params, searchParams }: { params: P
     supabase
       .from("resident_reports")
       .select("id, user_id, category, description, apartment, status, created_at")
-      .eq("building_id", buildingId)
+      .in("building_id", ids)
       .order("created_at", { ascending: false })
       .limit(50),
   ]);

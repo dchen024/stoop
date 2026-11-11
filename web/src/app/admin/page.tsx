@@ -29,6 +29,19 @@ type Dashboard = {
   totals: { accounts: number; email_accounts: number; watching_users: number };
 };
 
+type Dropped = {
+  total: number; new_7d: number;
+  summary: {
+    source: string; column_name: string; reason: string; values: number; seen: number;
+    new_7d: number; first_seen: string; last_seen: string;
+  }[];
+  recent: {
+    id: number; building_id: number; address: string | null; borough: string | null; column_name: string;
+    dropped_value: string; kept_value: string | null; reason: string; source: string;
+    first_seen: string; last_seen: string; times_seen: number; is_new: boolean;
+  }[];
+};
+
 const RANGES = [7, 30, 90];
 
 // "2026-11-10" is already a New York calendar day; don't let time zones shift it.
@@ -42,11 +55,15 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
   const requested = Number((await searchParams).days);
   const days = RANGES.includes(requested) ? requested : 30;
-  const { data, error } = await supabase.rpc("admin_dashboard", { p_days: days });
+  const [{ data, error }, { data: droppedData, error: droppedError }] = await Promise.all([
+    supabase.rpc("admin_dashboard", { p_days: days }),
+    supabase.rpc("admin_dropped_values", { p_limit: 50 }),
+  ]);
   if (error || !data) {
     return <p className="text-red-700">Couldn&apos;t load the dashboard: {error?.message}</p>;
   }
   const d = data as unknown as Dashboard;
+  const dropped = droppedData as unknown as Dropped | null;
   const sum = (k: keyof Daily) => d.daily.reduce((n, r) => n + Number(r[k] ?? 0), 0);
   const today = d.daily[0];
   const f = d.funnel;
@@ -153,7 +170,62 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ])}
         />
       </Section>
+
+      <Section
+        title="Dropped values"
+        note={
+          dropped
+            ? `${dropped.total.toLocaleString()} values Stoop discarded or replaced (${dropped.new_7d.toLocaleString()} first seen in the last 7 days). Whole rows the feed rejects are in ingest_rejects instead. Placeholder BINs are expected; new reasons are worth a look.`
+            : undefined
+        }
+      >
+        {droppedError || !dropped ? (
+          <p className="text-sm text-red-700">Couldn&apos;t load dropped values: {droppedError?.message}</p>
+        ) : (
+          <div className="space-y-6">
+            <Table
+              head={["Source", "Column", "Reason", "Values", "Times seen", "New (7d)", "Last seen"]}
+              rows={dropped.summary.map((s) => [
+                s.source, s.column_name, s.reason, s.values, s.seen,
+                s.new_7d ? <New key="n" n={s.new_7d} /> : "",
+                fmtDate(s.last_seen, true),
+              ])}
+            />
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">Most recent {dropped.recent.length}</h3>
+              <Table
+                head={["Building", "Column", "Dropped", "Kept", "Reason", "Source", "Seen", "Last seen", ""]}
+                rows={dropped.recent.map((r) => [
+                  r.address ? (
+                    <Link key="b" href={`/building/${r.building_id}`} className="underline">
+                      {titleCase(r.address)}, {titleCase(r.borough ?? "")}
+                    </Link>
+                  ) : (
+                    String(r.building_id)
+                  ),
+                  r.column_name,
+                  <code key="d" className="font-mono text-xs">{r.dropped_value}</code>,
+                  r.kept_value ? <code key="k" className="font-mono text-xs">{r.kept_value}</code> : <span key="k" className="text-stone-400">none</span>,
+                  r.reason,
+                  r.source,
+                  r.times_seen,
+                  fmtDate(r.last_seen, true),
+                  r.is_new ? <New key="n" /> : "",
+                ])}
+              />
+            </div>
+          </div>
+        )}
+      </Section>
     </div>
+  );
+}
+
+function New({ n }: { n?: number }) {
+  return (
+    <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs text-orange-900">
+      {n ? `${n} new` : "new"}
+    </span>
   );
 }
 
